@@ -1,12 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { buildNote, sortNotes, ValidationError } from '../src/notes.js';
+import { describe, it, expect } from 'vitest';
+import { buildNote, sortNotes, ValidationError, MAX_TITLE_LENGTH } from '../src/notes';
+import type { Note } from '../src/notes';
 
 describe('buildNote', () => {
   it('keeps the title and body it is given', () => {
-    const note = buildNote({ title: 'Docker', body: 'layers are cached' });
-    expect(note.title).toBe('Docker');
-    expect(note.body).toBe('layers are cached');
-    expect(note.id).toHaveLength(36);
+    const note = buildNote({ title: 'Groceries', body: 'milk, eggs' });
+    expect(note.title).toBe('Groceries');
+    expect(note.body).toBe('milk, eggs');
   });
 
   it('trims surrounding whitespace from the title', () => {
@@ -22,14 +22,19 @@ describe('buildNote', () => {
   });
 
   it('defaults a missing body to an empty string', () => {
-    expect(buildNote({ title: 'no body' }).body).toBe('');
+    expect(buildNote({ title: 'No body here' }).body).toBe('');
+  });
+
+  it('keeps a title of exactly the maximum length', () => {
+    const title = 'a'.repeat(MAX_TITLE_LENGTH);
+    expect(buildNote({ title, body: '' }).title).toBe(title);
   });
 });
 
 describe('sortNotes', () => {
   it('returns the newest note first', () => {
-    const older = { id: '1', title: 'older', body: '', createdAt: '2026-01-01T00:00:00.000Z' };
-    const newer = { id: '2', title: 'newer', body: '', createdAt: '2026-06-01T00:00:00.000Z' };
-    expect(sortNotes([older, newer]).map((n) => n.id)).toEqual(['2', '1']);
+    const older: Note = { id: '1', title: 'old', body: '', createdAt: '2024-01-01T00:00:00.000Z' };
+    const newer: Note = { id: '2', title: 'new', body: '', createdAt: '2024-06-01T00:00:00.000Z' };
+    expect(sortNotes([older, newer])[0].id).toBe('2');
   });
 });

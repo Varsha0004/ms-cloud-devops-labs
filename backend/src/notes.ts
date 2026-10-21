@@ -1,40 +1,41 @@
-import { describe, it, expect } from 'vitest';
-import { buildNote, sortNotes, ValidationError, MAX_TITLE_LENGTH } from '../src/notes';
-import type { Note } from '../src/notes';
+export interface Note {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+}
 
-describe('buildNote', () => {
-  it('keeps the title and body it is given', () => {
-    const note = buildNote({ title: 'Groceries', body: 'milk, eggs' });
-    expect(note.title).toBe('Groceries');
-    expect(note.body).toBe('milk, eggs');
-  });
+export interface NoteInput {
+  title?: unknown;
+  body?: unknown;
+}
 
-  it('trims surrounding whitespace from the title', () => {
-    expect(buildNote({ title: '  spaced out  ', body: '' }).title).toBe('spaced out');
-  });
+export class ValidationError extends Error { }
 
-  it('rejects an empty title', () => {
-    expect(() => buildNote({ title: '   ', body: 'x' })).toThrow(ValidationError);
-  });
+export const MAX_TITLE_LENGTH = 80;
 
-  it('rejects a title longer than 80 characters', () => {
-    expect(() => buildNote({ title: 'a'.repeat(81), body: '' })).toThrow(ValidationError);
-  });
+/**
+ * Turns whatever arrived in the request body into a Note we are willing to store.
+ * Throws ValidationError when the input cannot be repaired.
+ */
+export function buildNote(input: NoteInput, now: Date = new Date()): Note {
+  const title = typeof input.title === 'string' ? input.title.trim() : '';
+  const body = typeof input.body === 'string' ? input.body.trim() : '';
 
-  it('defaults a missing body to an empty string', () => {
-    expect(buildNote({ title: 'No body here' }).body).toBe('');
-  });
+  if (title.length === 0) throw new ValidationError('title is required');
+  if (title.length > MAX_TITLE_LENGTH) {
+    throw new ValidationError(`title must be ${MAX_TITLE_LENGTH} characters or fewer`);
+  }
 
-  it('keeps a title of exactly the maximum length', () => {
-    const title = 'a'.repeat(MAX_TITLE_LENGTH);
-    expect(buildNote({ title, body: '' }).title).toBe(title);
-  });
-});
+  return {
+    id: crypto.randomUUID(),
+    title,
+    body,
+    createdAt: now.toISOString()
+  };
+}
 
-describe('sortNotes', () => {
-  it('returns the newest note first', () => {
-    const older: Note = { id: '1', title: 'old', body: '', createdAt: '2024-01-01T00:00:00.000Z' };
-    const newer: Note = { id: '2', title: 'new', body: '', createdAt: '2024-06-01T00:00:00.000Z' };
-    expect(sortNotes([older, newer])[0].id).toBe('2');
-  });
-});
+/** Newest first, which is the order the UI expects. */
+export function sortNotes(notes: Note[]): Note[] {
+  return [...notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
