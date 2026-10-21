@@ -1,37 +1,40 @@
-export interface Note {
-  id: string;
-  title: string;
-  body: string;
-  createdAt: string;
-}
+import { describe, it, expect } from 'vitest';
+import { buildNote, sortNotes, ValidationError, MAX_TITLE_LENGTH } from '../src/notes';
+import type { Note } from '../src/notes';
 
-export interface NoteInput {
-  title?: unknown;
-  body?: unknown;
-}
+describe('buildNote', () => {
+  it('keeps the title and body it is given', () => {
+    const note = buildNote({ title: 'Groceries', body: 'milk, eggs' });
+    expect(note.title).toBe('Groceries');
+    expect(note.body).toBe('milk, eggs');
+  });
 
-export class ValidationError extends Error { }
+  it('trims surrounding whitespace from the title', () => {
+    expect(buildNote({ title: '  spaced out  ', body: '' }).title).toBe('spaced out');
+  });
 
-/**
- * Turns whatever arrived in the request body into a Note we are willing to store.
- * Throws ValidationError when the input cannot be repaired.
- */
-export function buildNote(input: NoteInput, now: Date = new Date()): Note {
-  const title = typeof input.title === 'string' ? input.title.trim() : '';
-  const body = typeof input.body === 'string' ? input.body.trim() : '';
+  it('rejects an empty title', () => {
+    expect(() => buildNote({ title: '   ', body: 'x' })).toThrow(ValidationError);
+  });
 
-  if (title.length === 0) throw new ValidationError('title is required');
-  if (title.length > 80) throw new ValidationError('title must be 80 characters or fewer');
+  it('rejects a title longer than 80 characters', () => {
+    expect(() => buildNote({ title: 'a'.repeat(81), body: '' })).toThrow(ValidationError);
+  });
 
-  return {
-    id: crypto.randomUUID(),
-    title,
-    body,
-    createdAt: now.toISOString()
-  };
-}
+  it('defaults a missing body to an empty string', () => {
+    expect(buildNote({ title: 'No body here' }).body).toBe('');
+  });
 
-/** Newest first, which is the order the UI expects. */
-export function sortNotes(notes: Note[]): Note[] {
-  return [...notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
+  it('keeps a title of exactly the maximum length', () => {
+    const title = 'a'.repeat(MAX_TITLE_LENGTH);
+    expect(buildNote({ title, body: '' }).title).toBe(title);
+  });
+});
+
+describe('sortNotes', () => {
+  it('returns the newest note first', () => {
+    const older: Note = { id: '1', title: 'old', body: '', createdAt: '2024-01-01T00:00:00.000Z' };
+    const newer: Note = { id: '2', title: 'new', body: '', createdAt: '2024-06-01T00:00:00.000Z' };
+    expect(sortNotes([older, newer])[0].id).toBe('2');
+  });
+});
